@@ -6,6 +6,8 @@
 
 One server that aggregates the best free models behind two APIs. A client points at it, and every completion it answers comes from a real free OpenRouter model dialled through the grader's gateway — never an answer of its own.
 
+Re-emitted in session: same content, re-written line for line.
+
 ## What it does
 
 - `POST /v1/chat/completions` — OpenAI-compatible, JSON and streaming (SSE)

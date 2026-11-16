@@ -1,3 +1,4 @@
+// Re-emitted in session: same logic, re-written line for line.
 // Free-model aggregator: one server, two client wires, a real free model behind every answer.
 //
 // The trial's client sends six prompts, one at a time, three to POST /v1/chat/completions and

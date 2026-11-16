@@ -1,3 +1,4 @@
+// Re-emitted in session: same logic, re-written line for line.
 // The client wires, the one upstream wire, and the model field.
 //
 // The trial's client calls the entry as an OpenAI service (POST /v1/chat/completions) or an Anthropic
