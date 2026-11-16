@@ -315,6 +315,16 @@ function isDoneFrame(frame: string): boolean {
  * The [DONE] frame is held to the end, so a usage chunk the upstream never sent can go before it: the
  * client's usage check needs a whole input count and an output count of at least one, and a stream that
  * produced text used at least one output token.
+ *
+ * Relay invariants, in the order they matter:
+ *   - every data payload that is a JSON object leaves with `model` set to the id this entry dialled;
+ *     comments, `event:` lines, empty payloads and the [DONE] marker pass through untouched;
+ *   - a frame that ends mid-read is buffered, never relayed half-formed: the reader's chunk boundary
+ *     is the network's, not the SSE grammar's, so the split happens on the blank line only;
+ *   - the [DONE] frame is never relayed early: it is held until the stream is drained, so a usage
+ *     chunk synthesized here (when the upstream sent none) still lands before it, in order;
+ *   - when the caller names the tools the client declared, a streamed tool call for any other tool
+ *     is dropped from the delta, so the answer never names a tool the client did not declare.
  */
 export async function* openAIStreamWithModel(
   upstream: ReadableStream<Uint8Array>,
@@ -390,6 +400,13 @@ export async function* openAIStreamWithModel(
  * caller names the tools the client declared, a streamed tool call for any other tool is dropped, so
  * the answer never names a tool the client did not declare. The usage the stream closes with counts
  * at least one output token when the stream produced any content: text or a tool call used one.
+ *
+ * Event order is the contract: message_start opens the sequence once, on the first chunk that carries
+ * anything; each text block opens with content_block_start, emits text_delta events, and closes with
+ * content_block_stop before the next block starts; each tool call gets its own block the same way,
+ * with argument fragments as input_json_delta events. The stop reason is held until the stream's
+ * last chunk and [DONE] have arrived, because OpenAI sends the usage after the finish_reason and
+ * Anthropic's message_delta carries the output tokens — closing early would lose the count.
  */
 export async function* anthropicEventsFromOpenAI(
   upstream: ReadableStream<Uint8Array>,

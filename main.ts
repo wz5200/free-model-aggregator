@@ -139,18 +139,27 @@ function requirementsFor(body: Json): Requirement {
   return requirementsFromBody(body);
 }
 
-/** Requirements read off a request body, when the brief has no row for it. */
-function requirementsFromBody(body: Json): Requirement {
+/** Whether any message in a request body carries an image block: only then is vision needed. */
+function visionInMessages(body: Json): boolean {
   const messages = Array.isArray(body.messages) ? body.messages : [];
-  let vision = false;
   for (const message of messages) {
     if (!isRecord(message) || !Array.isArray(message.content)) continue;
     for (const block of message.content) {
-      if (isRecord(block) && (block.type === 'image' || block.type === 'image_url')) vision = true;
+      if (isRecord(block) && (block.type === 'image' || block.type === 'image_url')) return true;
     }
   }
+  return false;
+}
+
+/** Whether a request body asks for a JSON answer: a json_object or json_schema response format. */
+function jsonFormatInBody(body: Json): boolean {
   const format = isRecord(body.response_format) ? body.response_format.type : undefined;
-  return { tools: Array.isArray(body.tools) && body.tools.length > 0, vision, json: format === 'json_object' || format === 'json_schema' };
+  return format === 'json_object' || format === 'json_schema';
+}
+
+/** Requirements read off a request body, when the brief has no row for it. */
+function requirementsFromBody(body: Json): Requirement {
+  return { tools: Array.isArray(body.tools) && body.tools.length > 0, vision: visionInMessages(body), json: jsonFormatInBody(body) };
 }
 
 /** The tool names a request body declares, in the shape of its wire. */

@@ -106,7 +106,17 @@ export interface Capabilities {
   json: boolean | null;
 }
 
-/** Every JSON object in `text` that carries a string `schema`, in the order they appear. */
+/**
+ * Every JSON object in `text` that carries a string `schema`, in the order they appear.
+ *
+ * The brief is prose with JSON documents embedded in it, so the whole text is never parsed as
+ * one JSON value: instead every `{` is tried as the start of an object, and each candidate is
+ * parsed on its own. A candidate only counts when it parses and carries a string `schema`, which
+ * is what separates the two documents the entry reads from any other braces the prose happens
+ * to hold. Objects that fail to parse, or that parse but carry no schema, are skipped and the
+ * scan moves on to the next `{`; the order of the documents found is the order they appear in
+ * the brief, and the model list and the prompt list are looked up from those in turn.
+ */
 function documentsIn(text: string): Json[] {
   const out: Json[] = [];
   for (let start = text.indexOf('{'); start !== -1; start = text.indexOf('{', start + 1)) {
@@ -122,7 +132,14 @@ function documentsIn(text: string): Json[] {
   return out;
 }
 
-/** The index of the `}` closing the object that opens at `start`, or -1; string contents are skipped. */
+/**
+ * The index of the `}` closing the object that opens at `start`, or -1; string contents are skipped.
+ *
+ * Braces inside a string literal do not open or close an object, so the scan tracks whether it is
+ * inside a string and skips an escaped character after a backslash. A `{` outside a string raises
+ * the depth, a `}` lowers it, and the object ends when the depth returns to zero; text that never
+ * closes returns -1, and the caller moves on to the next candidate `{` instead of failing.
+ */
 function objectEnd(text: string, start: number): number {
   let depth = 0;
   let inString = false;
@@ -156,6 +173,12 @@ function boolOrNull(v: unknown): boolean | null {
 /**
  * The first document under this contest's prefix that carries one of `keys` as an array: the document
  * and the key it was found under. A brief that spells its lists in the sibling's names still reads.
+ *
+ * The lookup is by shape, not by name: a document counts when its `schema` carries this contest's
+ * prefix and one of the keys holds an array, whichever key that is. The returned key is the one the
+ * array was found under, so the caller reads the same key back and never assumes the spelling.
+ * The first matching document wins, in the order `documentsIn` found them, so a brief that repeats
+ * a list keeps the first copy.
  */
 function arrayDocument(docs: readonly Json[], keys: readonly string[]): { doc: Json; key: string } | null {
   for (const doc of docs) {
